@@ -9,8 +9,8 @@ export const SEED_ATHLETES: AthleteProfile[] = [
     dateOfBirth: '2004-03-12', // 20 years old
     sex: 'male',
     club: 'Capital Athletics High Performance Club',
-    coachId: 'coach-david-miller',
-    coachName: 'Coach David Miller',
+    coachId: 'coach-rudra-roy',
+    coachName: 'Coach Rudra Roy',
     trainingSquad: 'Senior Sprint & Hurdle Group A',
     dominantHand: 'right',
     dominantFoot: 'left',
@@ -29,7 +29,7 @@ export const SEED_ATHLETES: AthleteProfile[] = [
       armSpanCm: 191.0,
       sittingHeightCm: 96.0,
       bodyFatPercent: 8.4,
-      recordedByCoachId: 'coach-david-miller',
+      recordedByCoachId: 'coach-rudra-roy',
       notes: 'Optimal lean muscle mass prior to championship block.',
     },
     measurementHistory: [
@@ -127,8 +127,8 @@ export const SEED_ATHLETES: AthleteProfile[] = [
     dateOfBirth: '2001-11-04', // 23 years old
     sex: 'male',
     club: 'National Athletics High Performance Centre',
-    coachId: 'coach-david-miller',
-    coachName: 'Coach David Miller',
+    coachId: 'coach-rudra-roy',
+    coachName: 'Coach Rudra Roy',
     trainingSquad: 'Jumps & Multi-Events',
     dominantHand: 'right',
     dominantFoot: 'left',
@@ -146,7 +146,7 @@ export const SEED_ATHLETES: AthleteProfile[] = [
       weightKg: 81.0,
       armSpanCm: 196.5,
       bodyFatPercent: 7.9,
-      recordedByCoachId: 'coach-david-miller',
+      recordedByCoachId: 'coach-rudra-roy',
     },
     measurementHistory: [
       {

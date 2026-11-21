@@ -119,7 +119,7 @@ export function CompetitionEntryModal({
       isPersonalBest,
       isSeasonBest,
       notes,
-      recordedByCoachId: 'coach-david-miller',
+      recordedByCoachId: 'coach-rudra-roy',
       verifiedByAdmin: true,
       createdAt: new Date().toISOString(),
     };

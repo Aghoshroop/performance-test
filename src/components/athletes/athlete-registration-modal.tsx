@@ -26,7 +26,7 @@ export function AthleteRegistrationModal({
   const [dateOfBirth, setDateOfBirth] = useState('2005-06-15');
   const [sex, setSex] = useState<SexGroup>('male');
   const [club, setClub] = useState('National Athletics High Performance Centre');
-  const [coachName, setCoachName] = useState('Coach David Miller');
+  const [coachName, setCoachName] = useState('Coach Rudra Roy');
   const [trainingSquad, setTrainingSquad] = useState('Senior Sprint & Hurdle Group A');
   const [dominantHand, setDominantHand] = useState<DominantSide>('right');
   const [dominantFoot, setDominantFoot] = useState<DominantSide>('left');
@@ -90,7 +90,7 @@ export function AthleteRegistrationModal({
       dateOfBirth,
       sex,
       club,
-      coachId: 'coach-david-miller',
+      coachId: 'coach-rudra-roy',
       coachName,
       trainingSquad,
       dominantHand,

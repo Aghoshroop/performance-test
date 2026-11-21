@@ -27,13 +27,13 @@ const STORAGE_KEYS = {
   CONFIG: 'athletics_intel_scoring_config_v1',
   REPORTS: 'athletics_intel_reports_v1',
   AUDIT_LOGS: 'athletics_intel_audit_logs_v1',
-  CURRENT_USER: 'athletics_intel_current_user_v1',
+  CURRENT_USER: 'athletics_intel_current_user_v2',
 };
 
 export const DEFAULT_CURRENT_USER: UserProfile = {
-  id: 'coach-david-miller',
-  email: 'david.miller@athletics.org',
-  fullName: 'Coach David Miller',
+  id: 'coach-rudra-roy',
+  email: 'rudra.roy@athletics.org',
+  fullName: 'Coach Rudra Roy',
   role: 'COACH',
   organizationId: 'org-nahpc',
   organizationName: 'National Athletics High Performance Centre',
@@ -67,7 +67,12 @@ class LocalStorageDB {
 
   // --- Current User & Role Management ---
   getCurrentUser(): UserProfile {
-    return this.getItem(STORAGE_KEYS.CURRENT_USER, DEFAULT_CURRENT_USER);
+    const user = this.getItem(STORAGE_KEYS.CURRENT_USER, DEFAULT_CURRENT_USER);
+    if (user && (user.fullName.includes('Miller') || user.id === 'coach-david-miller')) {
+      this.setItem(STORAGE_KEYS.CURRENT_USER, DEFAULT_CURRENT_USER);
+      return DEFAULT_CURRENT_USER;
+    }
+    return user;
   }
 
   setCurrentUser(user: UserProfile): void {
@@ -77,7 +82,26 @@ class LocalStorageDB {
 
   // --- Athletes ---
   getAthletes(): AthleteProfile[] {
-    return this.getItem(STORAGE_KEYS.ATHLETES, SEED_ATHLETES);
+    const list = this.getItem(STORAGE_KEYS.ATHLETES, SEED_ATHLETES);
+    let hasMigrated = false;
+    const mapped = list.map((a) => {
+      if (a.coachName && (a.coachName.includes('Miller') || a.coachId === 'coach-david-miller')) {
+        hasMigrated = true;
+        return {
+          ...a,
+          coachId: 'coach-rudra-roy',
+          coachName: 'Coach Rudra Roy',
+          currentMeasurements: a.currentMeasurements
+            ? { ...a.currentMeasurements, recordedByCoachId: 'coach-rudra-roy' }
+            : a.currentMeasurements,
+        };
+      }
+      return a;
+    });
+    if (hasMigrated && this.isBrowser()) {
+      this.setItem(STORAGE_KEYS.ATHLETES, mapped);
+    }
+    return mapped;
   }
 
   getAthleteById(id: string): AthleteProfile | undefined {
@@ -131,7 +155,18 @@ class LocalStorageDB {
 
   // --- Assessments ---
   getAssessments(): Assessment[] {
-    const list = this.getItem(STORAGE_KEYS.ASSESSMENTS, SEED_ASSESSMENTS);
+    const rawList = this.getItem(STORAGE_KEYS.ASSESSMENTS, SEED_ASSESSMENTS);
+    const list = rawList.map((ass) => {
+      if (ass.coachName && (ass.coachName.includes('Miller') || ass.coachId === 'coach-david-miller')) {
+        return {
+          ...ass,
+          coachId: 'coach-rudra-roy',
+          coachName: 'Coach Rudra Roy',
+          finalizedByCoachId: ass.finalizedByCoachId ? 'coach-rudra-roy' : undefined,
+        };
+      }
+      return ass;
+    });
     // If list does not have assessments for all current seed athletes, merge them in
     const athleteIdsInAssessments = new Set(list.map((a) => a.athleteId));
     let hasAdditions = false;
@@ -353,9 +388,9 @@ class LocalStorageDB {
       {
         id: 'log-seed-1',
         organizationId: 'org-nahpc',
-        userId: 'coach-david-miller',
-        userEmail: 'david.miller@athletics.org',
-        userName: 'Coach David Miller',
+        userId: 'coach-rudra-roy',
+        userEmail: 'rudra.roy@athletics.org',
+        userName: 'Coach Rudra Roy',
         role: 'COACH',
         action: 'finalize',
         entityType: 'assessment',

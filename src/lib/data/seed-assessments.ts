@@ -16,8 +16,8 @@ export const SEED_ASSESSMENTS: Assessment[] = [
     primaryEvent: '100m',
     batteryId: 'battery-sprints-hurdles-standard',
     batteryName: 'Sprints & Hurdles Performance Battery',
-    coachId: 'coach-david-miller',
-    coachName: 'Coach David Miller',
+    coachId: 'coach-rudra-roy',
+    coachName: 'Coach Rudra Roy',
     assessmentDate: '2024-04-20',
     status: 'finalized',
     coveragePercentage: 100,
@@ -273,7 +273,7 @@ export const SEED_ASSESSMENTS: Assessment[] = [
     createdAt: '2024-04-20T11:00:00Z',
     updatedAt: '2024-04-20T12:00:00Z',
     finalizedAt: '2024-04-20T12:00:00Z',
-    finalizedByCoachId: 'coach-david-miller',
+    finalizedByCoachId: 'coach-rudra-roy',
   },
 
   // 2. Marcus Vance - Current Assessment (October 2024)
@@ -289,8 +289,8 @@ export const SEED_ASSESSMENTS: Assessment[] = [
     primaryEvent: '100m',
     batteryId: 'battery-sprints-hurdles-standard',
     batteryName: 'Sprints & Hurdles Performance Battery',
-    coachId: 'coach-david-miller',
-    coachName: 'Coach David Miller',
+    coachId: 'coach-rudra-roy',
+    coachName: 'Coach Rudra Roy',
     assessmentDate: '2024-10-15',
     status: 'finalized',
     coveragePercentage: 100,
@@ -599,7 +599,7 @@ export const SEED_ASSESSMENTS: Assessment[] = [
     createdAt: '2024-10-15T11:00:00Z',
     updatedAt: '2024-10-15T12:30:00Z',
     finalizedAt: '2024-10-15T12:30:00Z',
-    finalizedByCoachId: 'coach-david-miller',
+    finalizedByCoachId: 'coach-rudra-roy',
   },
   ...SEED_ATHLETES.filter((a) => a.id !== 'ath-marcus-vance').map((a) =>
     createDefaultAssessmentForAthlete(a)

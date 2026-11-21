@@ -42,7 +42,7 @@ export function BodyMeasurementsModal({
       armSpanCm: Number(armSpanCm),
       sittingHeightCm: Number(sittingHeightCm),
       bodyFatPercent: Number(bodyFatPercent),
-      recordedByCoachId: 'coach-david-miller',
+      recordedByCoachId: 'coach-rudra-roy',
       notes,
     };
 

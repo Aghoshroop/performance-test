@@ -23,11 +23,93 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
-  Check,
   RefreshCw,
   Trophy,
-  SlidersHorizontal,
 } from 'lucide-react';
+
+export interface PresetBatch {
+  id: string;
+  name: string;
+  shortLabel: string;
+  icon: string;
+  testIds: string[];
+  description: string;
+}
+
+export const PRESET_BATCHES: PresetBatch[] = [
+  {
+    id: 'sprints-velocity',
+    name: 'Olympic Sprint & Acceleration',
+    shortLabel: '⚡ Sprint Trials',
+    icon: '⚡',
+    testIds: ['test-sprint-10m', 'test-sprint-30m', 'test-flying-10m-max-vel', 'test-cmj'],
+    description: '10m acceleration, 30m sprint, flying 10m max velocity, and countermovement jump',
+  },
+  {
+    id: 'distance-aerobic',
+    name: 'Distance & VO2max Trials',
+    shortLabel: '🏃 Distance Trials',
+    icon: '🏃',
+    testIds: ['test-cooper-12min', 'test-lactate-tolerance-6x400', 'test-yoyo-ir2', 'test-shuttle-20m'],
+    description: '12-min Cooper run, 6x400m lactate tolerance, Yo-Yo IR2, and 20m shuttle beep test',
+  },
+  {
+    id: 'jumps-power',
+    name: 'Jumps & Explosive Power',
+    shortLabel: '🚀 Jumps & Power',
+    icon: '🚀',
+    testIds: ['test-reactive-strength-index', 'test-bomst-overhead-medball', 'test-cmj', 'test-slj'],
+    description: 'RSI drop jump, backwards medball throw, CMJ, and standing long jump',
+  },
+  {
+    id: 'agility-speed',
+    name: 'Agility & Coordination',
+    shortLabel: '🔄 Agility & Speed',
+    icon: '🔄',
+    testIds: ['test-t-test', 'test-illinois-agility', 'test-sprint-10m', 'test-plate-tapping'],
+    description: 'T-test agility, Illinois agility run, 10m acceleration, and neuromuscular plate tapping',
+  },
+  {
+    id: 'strength-capacity',
+    name: 'Strength & Muscular Capacity',
+    shortLabel: '🏋️ Strength & Capacity',
+    icon: '🏋️',
+    testIds: ['test-relative-back-squat-1rm', 'test-handgrip', 'test-pushups-60s', 'test-bomst-overhead-medball'],
+    description: 'Relative back squat 1RM, handgrip dynamometry, 60s push-ups, and overhead medball throw',
+  },
+  {
+    id: 'mobility-stability',
+    name: 'Mobility & Joint Screening',
+    shortLabel: '🤸 Mobility & Screening',
+    icon: '🤸',
+    testIds: ['test-ankle-dorsiflexion', 'test-sit-and-reach', 'test-shoulder-mobility', 'test-y-balance'],
+    description: 'Ankle dorsiflexion lunge, sit & reach, shoulder mobility reach, and Y-balance stability',
+  },
+  {
+    id: 'multi-events',
+    name: 'Decathlon / Multi-Events Profile',
+    shortLabel: '🏆 Multi-Events (Dec/Hep)',
+    icon: '🏆',
+    testIds: ['test-sprint-10m', 'test-sprint-30m', 'test-cmj', 'test-slj', 'test-bomst-overhead-medball', 'test-cooper-12min'],
+    description: 'Sprint, vertical & horizontal jumps, throw power, and aerobic capacity',
+  },
+  {
+    id: 'standard-combine',
+    name: 'Standard Athletics Combine',
+    shortLabel: '📋 Standard Combine',
+    icon: '📋',
+    testIds: ['test-sprint-10m', 'test-sprint-30m', 'test-cmj', 'test-slj', 'test-handgrip', 'test-sit-and-reach', 'test-cooper-12min'],
+    description: 'Speed, power, strength, flexibility, and aerobic capacity combine',
+  },
+  {
+    id: 'olympic-battery',
+    name: 'Full Olympic Testing Battery',
+    shortLabel: '🏅 Full Olympic Battery',
+    icon: '🏅',
+    testIds: ['test-sprint-10m', 'test-sprint-30m', 'test-flying-10m-max-vel', 'test-cmj', 'test-slj', 'test-reactive-strength-index', 'test-yoyo-ir2', 'test-handgrip'],
+    description: 'Comprehensive 8-event Olympic high-performance physical battery',
+  },
+];
 
 interface SquadBatchTestingMatrixProps {
   athletes: AthleteProfile[];
@@ -45,15 +127,10 @@ export function SquadBatchTestingMatrix({
   const [testingDate, setTestingDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [testDefinitions, setTestDefinitions] = useState<TestDefinition[]>([]);
   
-  // Default selected trial events: 5 classic high-performance events
+  // Default selected trial events: Olympic Sprint & Acceleration preset
+  const [activePresetId, setActivePresetId] = useState<string>('sprints-velocity');
   const [selectedTestIds, setSelectedTestIds] = useState<Set<string>>(
-    new Set([
-      'test-sprint-10m',
-      'test-sprint-30m',
-      'test-cooper-12min',
-      'test-cmj',
-      'test-handgrip',
-    ])
+    new Set(PRESET_BATCHES[0].testIds)
   );
 
   // Matrix results: matrixValues[athleteId][testId] = string
@@ -61,9 +138,6 @@ export function SquadBatchTestingMatrix({
   const [athleteComments, setAthleteComments] = useState<Record<string, string>>({});
   const [selectedSquad, setSelectedSquad] = useState<string>('all');
   const [searchAthlete, setSearchAthlete] = useState<string>('');
-  const [isEventSelectorOpen, setIsEventSelectorOpen] = useState<boolean>(false);
-  const [eventSearchQuery, setEventSearchQuery] = useState<string>('');
-  const [eventCategoryFilter, setEventCategoryFilter] = useState<string>('all');
   const [notification, setNotification] = useState<{ type: 'success' | 'warning' | 'error'; message: string } | null>(null);
 
   // Load test definitions and initialize matrix values from latest assessments
@@ -115,17 +189,10 @@ export function SquadBatchTestingMatrix({
       .filter((t): t is TestDefinition => Boolean(t));
   }, [selectedTestIds, testDefinitions]);
 
-  // Filtered available tests for event picker
-  const filteredAvailableTests = useMemo(() => {
-    return testDefinitions.filter((t) => {
-      const matchCat = eventCategoryFilter === 'all' || t.category === eventCategoryFilter;
-      const matchSearch =
-        t.name.toLowerCase().includes(eventSearchQuery.toLowerCase()) ||
-        t.code.toLowerCase().includes(eventSearchQuery.toLowerCase()) ||
-        t.category.toLowerCase().includes(eventSearchQuery.toLowerCase());
-      return matchCat && matchSearch;
-    });
-  }, [testDefinitions, eventCategoryFilter, eventSearchQuery]);
+  // Active preset batch definition helper
+  const activePreset = useMemo(() => {
+    return PRESET_BATCHES.find((p) => p.id === activePresetId);
+  }, [activePresetId]);
 
   // Handle cell value change
   const handleCellChange = (athleteId: string, testId: string, val: string) => {
@@ -138,19 +205,6 @@ export function SquadBatchTestingMatrix({
     }));
   };
 
-  // Toggle test in selection
-  const handleToggleTest = (testId: string) => {
-    setSelectedTestIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(testId)) {
-        next.delete(testId);
-      } else {
-        next.add(testId);
-      }
-      return next;
-    });
-  };
-
   // Remove test column
   const handleRemoveTestColumn = (testId: string) => {
     setSelectedTestIds((prev) => {
@@ -158,12 +212,14 @@ export function SquadBatchTestingMatrix({
       next.delete(testId);
       return next;
     });
+    setActivePresetId('');
   };
 
   // Preset loaders
-  const handleApplyPreset = (testIds: string[], name: string) => {
-    setSelectedTestIds(new Set(testIds));
-    setNotification({ type: 'success', message: `Loaded ${name} (${testIds.length} events)` });
+  const handleApplyPreset = (preset: PresetBatch) => {
+    setSelectedTestIds(new Set(preset.testIds));
+    setActivePresetId(preset.id);
+    setNotification({ type: 'success', message: `Loaded ${preset.name} (${preset.testIds.length} events)` });
   };
 
   // Evaluate cell performance
@@ -234,8 +290,8 @@ export function SquadBatchTestingMatrix({
       primaryEvent: athlete.primaryEventName,
       batteryId: 'battery-squad-matrix-session',
       batteryName: `Squad Trial Session (${selectedTests.length} Events)`,
-      coachId: 'coach-david-miller',
-      coachName: 'Coach David Miller',
+      coachId: 'coach-rudra-roy',
+      coachName: 'Coach Rudra Roy',
       assessmentDate: testingDate,
       status,
       testResults,
@@ -251,7 +307,7 @@ export function SquadBatchTestingMatrix({
       scoringConfigVersion: scoringConfig.name,
       coachGeneralComments: athleteComments[athlete.id] || 'Squad batch trial protocol session.',
       finalizedAt: status === 'finalized' ? new Date().toISOString() : undefined,
-      finalizedByCoachId: status === 'finalized' ? 'coach-david-miller' : undefined,
+      finalizedByCoachId: status === 'finalized' ? 'coach-rudra-roy' : undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -409,186 +465,55 @@ export function SquadBatchTestingMatrix({
         </div>
       </div>
 
-      {/* EVENT COLUMNS CONFIGURATION BAR */}
-      <div className="bg-slate-900 border-b border-slate-800 p-4 text-white">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
-              Trial Event Columns:
-            </span>
-            <span className="px-2 py-0.5 rounded-full bg-red-600 text-white font-black text-[11px]">
-              {selectedTests.length} Events Selected
-            </span>
-            <span className="text-[11px] text-slate-400 hidden sm:inline">
-              (These appear as top columns in the matrix)
-            </span>
-          </div>
-
-          {/* Quick Trial Presets */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() =>
-                handleApplyPreset(
-                  ['test-sprint-10m', 'test-sprint-30m', 'test-flying-10m-max-vel', 'test-cmj'],
-                  'Olympic Sprint Trials'
-                )
-              }
-              className="text-[10px] font-bold px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
-            >
-              ⚡ Sprint Trials (4)
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                handleApplyPreset(
-                  ['test-cooper-12min', 'test-lactate-tolerance-6x400', 'test-yoyo-ir2', 'test-shuttle-20m'],
-                  'Distance & VO2max Trials'
-                )
-              }
-              className="text-[10px] font-bold px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
-            >
-              🏃 Distance Trials (4)
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                handleApplyPreset(
-                  ['test-reactive-strength-index', 'test-bomst-overhead-medball', 'test-cmj', 'test-slj'],
-                  'Jumps & Power Trials'
-                )
-              }
-              className="text-[10px] font-bold px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
-            >
-              🚀 Jumps & Power (4)
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                handleApplyPreset(
-                  [
-                    'test-sprint-10m',
-                    'test-sprint-30m',
-                    'test-cmj',
-                    'test-slj',
-                    'test-handgrip',
-                    'test-sit-and-reach',
-                    'test-cooper-12min',
-                  ],
-                  'Standard 7-Event Combine'
-                )
-              }
-              className="text-[10px] font-bold px-2.5 py-1 rounded-md bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-sm transition"
-            >
-              📋 Standard Combine (7)
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsEventSelectorOpen(!isEventSelectorOpen)}
-              className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-rose-400 border border-slate-700 transition"
-            >
-              <SlidersHorizontal className="w-3 h-3" />
-              {isEventSelectorOpen ? 'Close Event Picker' : 'Customize Events'}
-            </button>
-          </div>
-        </div>
-
-        {/* Collapsible Event Picker Grid */}
-        {isEventSelectorOpen && (
-          <div className="mt-3 pt-3 border-t border-slate-800 space-y-3">
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Filter events (e.g. 10m, 30m, cooper, lactate, squat)..."
-                  value={eventSearchQuery}
-                  onChange={(e) => setEventSearchQuery(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-hidden focus:ring-1 focus:ring-red-500"
-                />
-              </div>
-
-              {/* Category Pills */}
-              <div className="flex items-center gap-1 overflow-x-auto text-[10px]">
-                <button
-                  type="button"
-                  onClick={() => setEventCategoryFilter('all')}
-                  className={`px-2 py-0.5 rounded font-bold whitespace-nowrap ${
-                    eventCategoryFilter === 'all'
-                      ? 'bg-rose-600 text-white'
-                      : 'bg-slate-800 text-slate-300'
-                  }`}
-                >
-                  All ({testDefinitions.length})
-                </button>
-                {(['acceleration', 'speed', 'explosive_power', 'strength', 'endurance', 'agility'] as FitnessCategory[]).map(
-                  (c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setEventCategoryFilter(c)}
-                      className={`px-2 py-0.5 rounded font-bold whitespace-nowrap capitalize ${
-                        eventCategoryFilter === c
-                          ? 'bg-rose-600 text-white'
-                          : 'bg-slate-800 text-slate-300'
-                      }`}
-                    >
-                      {c.replace('_', ' ')}
-                    </button>
-                  )
-                )}
-              </div>
+      {/* PRESET TESTING BATCHES BAR */}
+      <div className="bg-slate-900 border-b border-slate-800 px-4 py-2.5 text-white shrink-0">
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-300">
+                Preset Testing Batches:
+              </span>
+              <span className="px-2 py-0.2 rounded-full bg-red-600 text-white font-black text-[10px] shadow-xs">
+                {selectedTests.length} Events In Active Batch
+              </span>
             </div>
+            {activePreset && (
+              <span className="text-[11px] text-slate-400 truncate max-w-lg">
+                Active Batch: <strong className="text-rose-400">{activePreset.name}</strong> • {activePreset.description}
+              </span>
+            )}
+          </div>
 
-            {/* Event checkboxes grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1 bg-slate-950 rounded-xl border border-slate-800">
-              {filteredAvailableTests.map((t) => {
-                const isSelected = selectedTestIds.has(t.id);
-                const catInfo = FITNESS_CATEGORIES_INFO[t.category];
-
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => handleToggleTest(t.id)}
-                    className={`flex items-center justify-between gap-2 p-2 rounded-lg border text-left transition ${
-                      isSelected
-                        ? 'bg-red-950/40 border-red-500 text-white'
-                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
+          {/* Preset Batches Buttons */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {PRESET_BATCHES.map((preset) => {
+              const isActive = activePresetId === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => handleApplyPreset(preset)}
+                  className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-md border transition shadow-xs ${
+                    isActive
+                      ? 'bg-gradient-to-r from-red-600 to-rose-600 border-red-500 text-white ring-1 ring-red-400 shadow-red-950/50'
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
+                  }`}
+                  title={preset.description}
+                >
+                  <span>{preset.icon}</span>
+                  <span>{preset.shortLabel}</span>
+                  <span
+                    className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
+                      isActive ? 'bg-red-950/60 text-white' : 'bg-slate-900 text-slate-400'
                     }`}
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="font-bold text-xs truncate">{t.name}</div>
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <span
-                          className="text-[9px] font-bold px-1 rounded uppercase"
-                          style={{
-                            color: catInfo?.color ?? '#f43f5e',
-                            backgroundColor: `${catInfo?.color ?? '#f43f5e'}20`,
-                          }}
-                        >
-                          {catInfo?.label ?? t.category}
-                        </span>
-                        <span className="text-[10px] font-mono text-slate-500">
-                          {t.unit}
-                        </span>
-                      </div>
-                    </div>
-                    <div
-                      className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border ${
-                        isSelected
-                          ? 'bg-red-600 border-red-600 text-white'
-                          : 'border-slate-700 bg-slate-950 text-transparent'
-                      }`}
-                    >
-                      <Check className="w-3 h-3 stroke-[3]" />
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+                    {preset.testIds.length}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Notification Banner */}

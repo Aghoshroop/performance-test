@@ -9,6 +9,7 @@ import { calculateFitnessScores } from '@/lib/scoring/fitness-scoring';
 import { calculateBilateralAsymmetry } from '@/lib/scoring/bilateral';
 import { db } from '@/lib/storage/local-storage-db';
 import { Badge } from '@/components/ui/badge';
+import { PRESET_BATCHES, PresetBatch } from '@/components/fitness/squad-batch-testing-matrix';
 import {
   Activity,
   CheckCircle2,
@@ -21,13 +22,9 @@ import {
   ChevronUp,
   X,
   FileText,
-  Search,
-  Check,
-  Plus,
   Trash2,
   Sparkles,
   RotateCcw,
-  Filter,
 } from 'lucide-react';
 
 interface CoachTestingEntryProps {
@@ -59,17 +56,15 @@ export function CoachTestingEntry({
   );
   const [testingDate, setTestingDate] = useState<string>('2024-10-15');
   const [batteries, setBatteries] = useState<TestingBattery[]>([]);
-  const [selectedBatteryId, setSelectedBatteryId] = useState<string>('');
+  const [selectedBatteryId, setSelectedBatteryId] = useState<string>('battery-sprints-velocity');
   const [testDefinitions, setTestDefinitions] = useState<TestDefinition[]>([]);
   
-  // Dynamic user selection: starts completely BLANK as requested
-  const [selectedTestIds, setSelectedTestIds] = useState<Set<string>>(new Set());
+  // Active preset batch and selected tests
+  const [activePresetId, setActivePresetId] = useState<string>('sprints-velocity');
+  const [selectedTestIds, setSelectedTestIds] = useState<Set<string>>(
+    new Set(PRESET_BATCHES[0].testIds)
+  );
   const [testEntries, setTestEntries] = useState<Record<string, TestEntryState>>({});
-  
-  // Event Picker controls
-  const [isPickerOpen, setIsPickerOpen] = useState<boolean>(true);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all');
 
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
     speed: true,
@@ -86,14 +81,34 @@ export function CoachTestingEntry({
   const [coachGeneralComments, setCoachGeneralComments] = useState('');
   const [notification, setNotification] = useState<{ type: 'success' | 'warning' | 'error'; message: string } | null>(null);
 
-  // Load batteries and test definitions from database
+  // Load batteries, test definitions, and initialize default preset batch
   useEffect(() => {
     setTestingDate(new Date().toISOString().split('T')[0]);
     const bList = db.getTestingBatteries();
     setBatteries(bList);
     const tDefs = db.getTestDefinitions();
     setTestDefinitions(tDefs);
-    // Note: Starts with an empty selection (blank form) per user request
+
+    const defaultPreset = PRESET_BATCHES[0];
+    setActivePresetId(defaultPreset.id);
+    setSelectedBatteryId(`battery-${defaultPreset.id}`);
+    setSelectedTestIds(new Set(defaultPreset.testIds));
+
+    const initialEntries: Record<string, TestEntryState> = {};
+    for (const testId of defaultPreset.testIds) {
+      const t = tDefs.find((def) => def.id === testId);
+      if (t) {
+        initialEntries[t.id] = {
+          test: t,
+          attempts: Array(t.permittedAttempts).fill(''),
+          isBilateral: t.isBilateral,
+          leftAttempts: t.isBilateral ? Array(t.permittedAttempts).fill('') : [],
+          rightAttempts: t.isBilateral ? Array(t.permittedAttempts).fill('') : [],
+          coachNotes: '',
+        };
+      }
+    }
+    setTestEntries(initialEntries);
   }, []);
 
   const selectedAthlete = athletes.find((a) => a.id === selectedAthleteId);
@@ -121,83 +136,19 @@ export function CoachTestingEntry({
     };
   };
 
-  // Toggle single test on or off
-  const handleToggleTest = (testId: string) => {
-    setSelectedTestIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(testId)) {
-        next.delete(testId);
-      } else {
-        next.add(testId);
-        // Ensure test entry is initialized
-        setTestEntries((prevEntries) => {
-          if (prevEntries[testId]) return prevEntries;
-          return {
-            ...prevEntries,
-            [testId]: ensureEntryExists(testId, prevEntries),
-          };
-        });
+  // Active preset helper
+  const activePreset = PRESET_BATCHES.find((p) => p.id === activePresetId);
 
-        // Ensure category is expanded so coach sees it immediately
-        const t = testDefinitions.find((def) => def.id === testId);
-        if (t) {
-          setExpandedCategories((prevExp) => ({ ...prevExp, [t.category]: true }));
-        }
-      }
-      return next;
-    });
-  };
-
-  // Remove test directly from form card
-  const handleRemoveTest = (testId: string) => {
-    setSelectedTestIds((prev) => {
-      const next = new Set(prev);
-      next.delete(testId);
-      return next;
-    });
-  };
-
-  // Clear all selected tests (back to blank form)
-  const handleClearAll = () => {
-    setSelectedTestIds(new Set());
-    setSelectedBatteryId('');
-    setNotification({ type: 'warning', message: 'Testing sheet cleared to blank state.' });
-  };
-
-  // Select all available tests
-  const handleSelectAll = () => {
-    const allIds = new Set(testDefinitions.map((t) => t.id));
-    setSelectedTestIds(allIds);
-    setTestEntries((prevEntries) => {
-      const updated = { ...prevEntries };
-      for (const t of testDefinitions) {
-        if (!updated[t.id]) {
-          updated[t.id] = {
-            test: t,
-            attempts: Array(t.permittedAttempts).fill(''),
-            isBilateral: t.isBilateral,
-            leftAttempts: t.isBilateral ? Array(t.permittedAttempts).fill('') : [],
-            rightAttempts: t.isBilateral ? Array(t.permittedAttempts).fill('') : [],
-            coachNotes: '',
-          };
-        }
-      }
-      return updated;
-    });
-    setNotification({ type: 'success', message: `All ${testDefinitions.length} events loaded into form.` });
-  };
-
-  // Apply a preset testing battery
-  const handleApplyPreset = (batteryId: string) => {
-    const battery = batteries.find((b) => b.id === batteryId);
-    if (!battery) return;
-    setSelectedBatteryId(battery.id);
-    const nextIds = new Set(battery.testIds);
+  // Apply a preset testing batch
+  const handleApplyPreset = (preset: PresetBatch) => {
+    setActivePresetId(preset.id);
+    setSelectedBatteryId(`battery-${preset.id}`);
+    const nextIds = new Set(preset.testIds);
     setSelectedTestIds(nextIds);
 
     setTestEntries((prevEntries) => {
       const updated = { ...prevEntries };
-      for (const testId of battery.testIds) {
+      for (const testId of preset.testIds) {
         if (!updated[testId]) {
           const t = testDefinitions.find((def) => def.id === testId);
           if (t) {
@@ -217,8 +168,18 @@ export function CoachTestingEntry({
 
     setNotification({
       type: 'success',
-      message: `Loaded ${battery.name} (${battery.testIds.length} tests).`,
+      message: `Loaded ${preset.name} (${preset.testIds.length} tests).`,
     });
+  };
+
+  // Remove test directly from form card
+  const handleRemoveTest = (testId: string) => {
+    setSelectedTestIds((prev) => {
+      const next = new Set(prev);
+      next.delete(testId);
+      return next;
+    });
+    setActivePresetId('');
   };
 
   // Update single attempt
@@ -357,22 +318,14 @@ export function CoachTestingEntry({
     new Set(evaluatedResults.map((r) => r.category))
   ) as FitnessCategory[];
 
-  // Filter available test definitions in event picker
-  const filteredAvailableTests = testDefinitions.filter((t) => {
-    const matchCat = selectedCategoryFilter === 'all' || t.category === selectedCategoryFilter;
-    const matchSearch =
-      t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.category.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchCat && matchSearch;
-  });
-
   // Build finalized Assessment object
   const buildAssessmentRecord = (status: 'draft' | 'validated' | 'finalized'): Assessment => {
     const batteryObj = batteries.find((b) => b.id === selectedBatteryId);
-    const batteryName = batteryObj
+    const batteryName = activePreset
+      ? activePreset.name
+      : batteryObj
       ? batteryObj.name
-      : `Custom Testing Session (${selectedTestIds.size} Events)`;
+      : `Testing Session (${selectedTestIds.size} Events)`;
 
     return {
       id: `ass-${selectedAthlete?.id}-${testingDate}-${Date.now().toString().slice(-4)}`,
@@ -384,10 +337,10 @@ export function CoachTestingEntry({
       sex: selectedAthlete?.sex ?? 'male',
       eventGroup: selectedAthlete?.eventGroup ?? 'sprints',
       primaryEvent: selectedAthlete?.primaryEventName ?? '100m',
-      batteryId: selectedBatteryId || 'battery-custom-session',
+      batteryId: activePreset ? `battery-${activePreset.id}` : selectedBatteryId || 'battery-custom-session',
       batteryName,
-      coachId: 'coach-david-miller',
-      coachName: 'Coach David Miller',
+      coachId: 'coach-rudra-roy',
+      coachName: 'Coach Rudra Roy',
       assessmentDate: testingDate,
       status,
       testResults: evaluatedResults,
@@ -409,7 +362,7 @@ export function CoachTestingEntry({
       scoringConfigVersion: scoringConfig.name,
       coachGeneralComments,
       finalizedAt: status === 'finalized' ? new Date().toISOString() : undefined,
-      finalizedByCoachId: status === 'finalized' ? 'coach-david-miller' : undefined,
+      finalizedByCoachId: status === 'finalized' ? 'coach-rudra-roy' : undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -441,44 +394,50 @@ export function CoachTestingEntry({
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+    <div className={`bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col ${onClose ? 'h-full max-h-[90vh]' : ''}`}>
       {/* Top Header */}
-      <div className="bg-slate-900 text-white p-5 border-b border-slate-800">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 text-white flex items-center justify-center font-black">
-              <Activity className="w-5 h-5" />
+      <div className="bg-slate-900 text-white px-5 py-3 border-b border-slate-800 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-red-600 to-rose-600 text-white flex items-center justify-center font-black shadow-sm shrink-0">
+              <Activity className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                Physical Fitness Assessment Engine
-                <span className="text-[10px] bg-red-500/20 text-rose-300 font-bold px-2 py-0.5 rounded border border-red-500/40">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-white">
+                  Physical Fitness Assessment Engine
+                </h2>
+                <span className="text-[9px] bg-red-500/20 text-rose-300 font-bold px-1.5 py-0.5 rounded border border-red-500/40">
                   Published Norm Calibrated
                 </span>
-              </h2>
-              <p className="text-xs text-slate-400">
-                Select specific events/tests to assess • Automatic category routing & live percentile scoring
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Multi-attempt scoring • Published norm percentiles & composite calculation
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleSaveDraft}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
             >
               <Save className="w-3.5 h-3.5" />
               Save Draft
             </button>
             <button
               onClick={handleFinalize}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white shadow-md shadow-red-950/40 shadow-md transition"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white shadow-md shadow-red-950/40 transition"
             >
-              <CheckCircle2 className="w-4 h-4" />
+              <CheckCircle2 className="w-3.5 h-3.5" />
               Finalize Assessment
             </button>
             {onClose && (
-              <button onClick={onClose} className="p-2 text-slate-400 hover:text-white rounded-lg">
+              <button
+                onClick={onClose}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+                title="Close"
+              >
                 <X className="w-5 h-5" />
               </button>
             )}
@@ -486,16 +445,16 @@ export function CoachTestingEntry({
         </div>
 
         {/* Athlete & Date Header Row */}
-        <div className="mt-4 pt-4 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="mt-2.5 pt-2.5 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {/* Select Athlete */}
           <div>
-            <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+            <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
               Athlete Profile
             </label>
             <select
               value={selectedAthleteId}
               onChange={(e) => setSelectedAthleteId(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs font-semibold text-white focus:outline-hidden focus:ring-2 focus:ring-red-500"
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white focus:outline-hidden focus:ring-1 focus:ring-red-500"
             >
               {athletes.map((a) => (
                 <option key={a.id} value={a.id}>
@@ -507,244 +466,77 @@ export function CoachTestingEntry({
 
           {/* Testing Date */}
           <div>
-            <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+            <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5 flex items-center gap-1">
               <Calendar className="w-3 h-3 text-rose-400" /> Testing Date (Age: {athleteAge}y)
             </label>
             <input
               type="date"
               value={testingDate}
               onChange={(e) => setTestingDate(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-hidden focus:ring-2 focus:ring-red-500"
+              className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-hidden focus:ring-1 focus:ring-red-500"
             />
           </div>
         </div>
       </div>
 
-      {/* EVENT & TEST SELECTION DECK */}
-      <div className="bg-slate-900 border-b border-slate-800 text-white p-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-lg bg-red-500/20 text-rose-400 border border-red-500/30">
-              <Layers className="w-4 h-4" />
+      {/* PRESET TESTING BATCHES DECK */}
+      <div className="bg-slate-900 border-b border-slate-800 text-white px-5 py-2.5 shrink-0">
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-rose-400" />
+                Preset Testing Batches:
+              </span>
+              <span className="px-2 py-0.2 rounded-full bg-red-600 text-white font-black text-[10px] shadow-xs">
+                {selectedTestIds.size} Events Active
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-white uppercase tracking-wider">
-                  Select Events & Tests To Run
-                </span>
-                <span className="px-2 py-0.5 rounded-full bg-red-600 text-white font-black text-[11px]">
-                  {selectedTestIds.size} Selected
-                </span>
-                {selectedTestIds.size === 0 && (
-                  <span className="text-[11px] text-rose-400/80 italic">
-                    (Form is currently blank — choose events below)
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Click any event to add it. It will automatically route into its specific category (e.g. 10m → Acceleration, 30m → Speed, Cooper → Endurance).
-              </p>
-            </div>
+            {activePreset && (
+              <span className="text-[11px] text-slate-400 truncate max-w-lg">
+                Protocol: <strong className="text-rose-400">{activePreset.name}</strong> • {activePreset.description}
+              </span>
+            )}
           </div>
 
-          {/* Quick Preset Buttons & Toggle */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="hidden lg:flex items-center gap-1 bg-slate-950 border border-slate-800 rounded-lg p-1">
-              <button
-                onClick={() => handleApplyPreset('battery-olympic-sprint-velocity')}
-                className="text-[10px] font-semibold px-2 py-1 rounded hover:bg-slate-800 text-slate-300 transition"
-                title="Select 10m, 30m, Flying 10m, Wingate 30s, RSI, CMJ, Relative Squat 1RM"
-              >
-                ⚡ Sprint Preset
-              </button>
-              <button
-                onClick={() => handleApplyPreset('battery-olympic-endurance-vo2max')}
-                className="text-[10px] font-semibold px-2 py-1 rounded hover:bg-slate-800 text-slate-300 transition"
-                title="Select Cooper 12-Min, 6x400m Lactate, Yo-Yo IR2, CMJ, 20m Beep Test"
-              >
-                🏃 Distance Preset
-              </button>
-              <button
-                onClick={() => handleApplyPreset('battery-olympic-jumps-power')}
-                className="text-[10px] font-semibold px-2 py-1 rounded hover:bg-slate-800 text-slate-300 transition"
-                title="Select RSI Drop Jump, BOMST Medball, CMJ, Broad Jump, Triple Hop"
-              >
-                🚀 Jumps Preset
-              </button>
-              <button
-                onClick={handleSelectAll}
-                className="text-[10px] font-semibold px-2 py-1 rounded hover:bg-slate-800 text-rose-400 transition"
-              >
-                Select All
-              </button>
-              <button
-                onClick={handleClearAll}
-                className="text-[10px] font-semibold px-2 py-1 rounded hover:bg-rose-950/60 text-rose-300 transition"
-              >
-                Clear (Blank)
-              </button>
-            </div>
-
-            <button
-              onClick={() => setIsPickerOpen(!isPickerOpen)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 transition"
-            >
-              {isPickerOpen ? (
-                <>
-                  <ChevronUp className="w-3.5 h-3.5 text-rose-400" />
-                  Hide Event Catalog
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="w-3.5 h-3.5 text-rose-400" />
-                  Browse & Pick Events ({selectedTestIds.size})
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Collapsible Event Selection Grid */}
-        {isPickerOpen && (
-          <div className="mt-3 pt-2 space-y-3">
-            {/* Search and Category Filter Tabs */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-              {/* Search Bar */}
-              <div className="relative flex-1 max-w-md">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search events (e.g. 10m, 30m, cooper, lactate, squat, drop jump)..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-hidden focus:ring-1 focus:ring-red-500"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 top-2 text-slate-400 hover:text-white"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-
-              {/* Category Filter Pills */}
-              <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0 text-[10px]">
+          {/* Preset Buttons */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {PRESET_BATCHES.map((preset) => {
+              const isActive = activePresetId === preset.id;
+              return (
                 <button
-                  onClick={() => setSelectedCategoryFilter('all')}
-                  className={`px-2.5 py-1 rounded-md font-bold whitespace-nowrap transition ${
-                    selectedCategoryFilter === 'all'
-                      ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                  key={preset.id}
+                  type="button"
+                  onClick={() => handleApplyPreset(preset)}
+                  className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-md border transition shadow-xs ${
+                    isActive
+                      ? 'bg-gradient-to-r from-red-600 to-rose-600 border-red-500 text-white ring-1 ring-red-400 shadow-red-950/50'
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border-slate-700'
                   }`}
+                  title={preset.description}
                 >
-                  All ({testDefinitions.length})
-                </button>
-                {(['acceleration', 'speed', 'explosive_power', 'strength', 'endurance', 'agility', 'flexibility', 'mobility'] as FitnessCategory[]).map(
-                  (cat) => {
-                    const info = FITNESS_CATEGORIES_INFO[cat];
-                    const count = testDefinitions.filter((t) => t.category === cat).length;
-                    return (
-                      <button
-                        key={cat}
-                        onClick={() => setSelectedCategoryFilter(cat)}
-                        className={`px-2.5 py-1 rounded-md font-bold whitespace-nowrap transition ${
-                          selectedCategoryFilter === cat
-                            ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white'
-                            : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                        }`}
-                      >
-                        {info?.label ?? cat} ({count})
-                      </button>
-                    );
-                  }
-                )}
-              </div>
-            </div>
-
-            {/* Test Cards Selection Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 max-h-56 overflow-y-auto p-1 bg-slate-950/70 rounded-xl border border-slate-800">
-              {filteredAvailableTests.map((t) => {
-                const isSelected = selectedTestIds.has(t.id);
-                const catInfo = FITNESS_CATEGORIES_INFO[t.category];
-
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => handleToggleTest(t.id)}
-                    className={`flex items-start justify-between gap-2 p-2.5 rounded-lg border text-left transition ${
-                      isSelected
-                        ? 'bg-red-500/15 border-red-500/80 text-white shadow-xs ring-1 ring-red-500/50'
-                        : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-850'
+                  <span>{preset.icon}</span>
+                  <span>{preset.shortLabel}</span>
+                  <span
+                    className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold ${
+                      isActive ? 'bg-red-950/60 text-white' : 'bg-slate-900 text-slate-400'
                     }`}
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-bold text-xs text-white truncate">{t.name}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-1.5">
-                        <span
-                          className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider"
-                          style={{
-                            backgroundColor: `${catInfo?.color ?? '#eab308'}25`,
-                            color: catInfo?.color ?? '#eab308',
-                            border: `1px solid ${catInfo?.color ?? '#eab308'}50`,
-                          }}
-                        >
-                          {catInfo?.label ?? t.category}
-                        </span>
-                        <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.2 rounded">
-                          {t.unit}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div
-                      className={`w-5 h-5 rounded flex items-center justify-center shrink-0 border transition ${
-                        isSelected
-                          ? 'bg-red-600 border-red-500 text-slate-950'
-                          : 'border-slate-700 bg-slate-950 text-transparent'
-                      }`}
-                    >
-                      <Check className="w-3.5 h-3.5 stroke-[3]" />
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Mobile / Quick Action Footer inside Picker */}
-            <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
-              <span>
-                Showing {filteredAvailableTests.length} of {testDefinitions.length} events
-              </span>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleClearAll}
-                  className="text-rose-400 hover:text-rose-300 text-xs font-semibold underline"
-                >
-                  Clear Selection (Blank Form)
+                    {preset.testIds.length}
+                  </span>
                 </button>
-                <button
-                  onClick={handleSelectAll}
-                  className="text-rose-400 hover:text-rose-300 text-xs font-semibold underline"
-                >
-                  Select All Events
-                </button>
-              </div>
-            </div>
+              );
+            })}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Real-time Calculation Summary Bar */}
-      <div className="bg-red-500/10 border-b border-red-500/20 px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-red-500/10 border-b border-red-500/20 px-5 py-2 flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-4">
           <div>
-            <div className="text-[11px] font-semibold text-slate-500 uppercase">Overall Fitness Score</div>
-            <div className="text-xl font-black text-slate-900 flex items-center gap-2">
+            <div className="text-[10px] font-semibold text-slate-500 uppercase">Overall Fitness Score</div>
+            <div className="text-base font-black text-slate-900 flex items-center gap-2">
               {fitnessScoreCalc.overallFitnessScore !== undefined ? (
                 <>
                   <span>{fitnessScoreCalc.overallFitnessScore.toFixed(1)}</span>
@@ -753,31 +545,31 @@ export function CoachTestingEntry({
                   </Badge>
                 </>
               ) : (
-                <span className="text-sm font-semibold text-red-700 flex items-center gap-1">
-                  <AlertTriangle className="w-4 h-4 text-red-600" />
+                <span className="text-xs font-semibold text-red-700 flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
                   Coverage {fitnessScoreCalc.coveragePercentage}% (Min {scoringConfig.minimumDataCoveragePercent}% req)
                 </span>
               )}
             </div>
           </div>
-          <div className="h-8 w-px bg-slate-200 hidden sm:block" />
+          <div className="h-6 w-px bg-slate-200 hidden sm:block" />
           <div className="hidden sm:block">
-            <div className="text-[11px] font-semibold text-slate-500 uppercase">Active Testing Protocol</div>
-            <div className="text-sm font-bold text-slate-800">
-              {selectedTestIds.size} event{selectedTestIds.size !== 1 ? 's' : ''} selected across {categoriesPresent.length} categor{categoriesPresent.length === 1 ? 'y' : 'ies'}
+            <div className="text-[10px] font-semibold text-slate-500 uppercase">Active Testing Protocol</div>
+            <div className="text-xs font-bold text-slate-800">
+              {selectedTestIds.size} event{selectedTestIds.size !== 1 ? 's' : ''} across {categoriesPresent.length} categor{categoriesPresent.length === 1 ? 'y' : 'ies'}
             </div>
           </div>
         </div>
 
         {notification && (
-          <div className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-gradient-to-r from-red-600 to-rose-600 text-white">
+          <div className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-xs">
             {notification.message}
           </div>
         )}
       </div>
 
       {/* Main Testing Body */}
-      <div className="p-6 space-y-6 max-h-[65vh] overflow-y-auto">
+      <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
         {/* BLANK FORM EMPTY STATE */}
         {selectedTestIds.size === 0 ? (
           <div className="py-12 px-6 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/70">
@@ -786,34 +578,23 @@ export function CoachTestingEntry({
             </div>
             <h3 className="text-base font-bold text-slate-900">Testing Sheet is Blank</h3>
             <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-5">
-              No physical tests have been selected yet. Select the events you want to test above. Each selected event will automatically route under its physiological category (e.g. 10m Sprint → Acceleration, 30m Sprint → Speed, Cooper 12-Min → Endurance).
+              No physical events are selected. Choose one of the preset testing batches below to start recording trial marks:
             </p>
             <div className="flex flex-wrap items-center justify-center gap-2">
-              <button
-                onClick={() => handleApplyPreset('battery-olympic-sprint-velocity')}
-                className="px-3.5 py-2 text-xs font-bold rounded-lg bg-slate-900 hover:bg-slate-800 text-white transition shadow-sm"
-              >
-                ⚡ Load Olympic Sprint & Velocity (7 Tests)
-              </button>
-              <button
-                onClick={() => handleApplyPreset('battery-olympic-endurance-vo2max')}
-                className="px-3.5 py-2 text-xs font-bold rounded-lg bg-slate-900 hover:bg-slate-800 text-white transition shadow-sm"
-              >
-                🏃 Load Olympic Endurance & VO2max (7 Tests)
-              </button>
-              <button
-                onClick={() => handleApplyPreset('battery-olympic-jumps-power')}
-                className="px-3.5 py-2 text-xs font-bold rounded-lg bg-slate-900 hover:bg-slate-800 text-white transition shadow-sm"
-              >
-                🚀 Load Olympic Jumps & Power (7 Tests)
-              </button>
-              <button
-                onClick={() => setIsPickerOpen(true)}
-                className="px-3.5 py-2 text-xs font-bold rounded-lg bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white shadow-md shadow-red-950/40 transition shadow-sm"
-              >
-                <Plus className="w-3.5 h-3.5 inline mr-1" />
-                Browse All Events
-              </button>
+              {PRESET_BATCHES.map((preset) => (
+                <button
+                  key={preset.id}
+                  onClick={() => handleApplyPreset(preset)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg bg-slate-900 hover:bg-slate-800 text-white transition shadow-sm"
+                  title={preset.description}
+                >
+                  <span>{preset.icon}</span>
+                  <span>{preset.shortLabel}</span>
+                  <span className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.2 rounded-full font-bold">
+                    {preset.testIds.length}
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
         ) : (

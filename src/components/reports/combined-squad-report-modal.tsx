@@ -321,7 +321,7 @@ export function CombinedSquadReportModal({
               </div>
               <div>
                 <span className="text-slate-500 font-medium block">Supervising Coach</span>
-                <span className="font-bold text-slate-900">Coach David Miller</span>
+                <span className="font-bold text-slate-900">Coach Rudra Roy</span>
               </div>
             </div>
 

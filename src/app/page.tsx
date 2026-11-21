@@ -219,6 +219,7 @@ export default function Home() {
               onDeleteAthlete={(ath) => setAthleteToDelete(ath)}
               onOpenReport={(ass) => setReportModalAssessment(ass)}
               userRole={currentUser.role}
+              theme={theme}
             />
           ) : (
             <>
@@ -410,7 +411,7 @@ export default function Home() {
                           </h3>
                           <p className={`text-xs ${theme === 'bright' ? 'text-slate-500' : 'text-slate-400'}`}>
                             {fitnessViewMode === 'batch'
-                              ? 'Squad Batch Testing Mode: Select events once, enter trial scores for all athletes simultaneously, and view combined report.'
+                              ? 'Squad Batch Testing Mode: Choose a preset testing batch, enter trial scores for all athletes simultaneously, and view combined report.'
                               : 'Individual Athlete Mode: Single-athlete comprehensive testing battery with multi-attempt, trial, and bilateral tracking.'}
                           </p>
                         </div>
@@ -798,8 +799,8 @@ export default function Home() {
 
       {/* 3. Fast Testing Entry Modal */}
       {isTestingModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="max-w-4xl w-full my-8">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-3 sm:p-5 overflow-hidden">
+          <div className="max-w-5xl w-full h-[90vh] max-h-[920px] flex flex-col">
             <CoachTestingEntry
               athletes={athletes}
               initialAthleteId={selectedAthlete?.id}

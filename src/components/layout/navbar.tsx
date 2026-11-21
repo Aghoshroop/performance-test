@@ -205,15 +205,15 @@ export function Navbar({
         <div className="flex items-center gap-2 shrink-0">
           {/* Coach Profile Capsule */}
           <div className="rounded-full border border-red-500/25 bg-black/45 hover:bg-black/65 hover:border-red-500/45 px-2.5 sm:px-3 py-1 flex items-center gap-2 transition cursor-pointer shadow-xs">
-            {/* Red Circle DM Avatar */}
+            {/* Red Circle RR Avatar */}
             <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-gradient-to-br from-red-500 to-rose-700 text-white font-black text-xs flex items-center justify-center shadow-[0_0_10px_rgba(239,68,68,0.5)] shrink-0">
-              DM
+              RR
             </div>
 
             {/* Coach Credentials */}
             <div className="text-left hidden sm:block">
               <div className="text-xs font-bold text-white flex items-center gap-1 leading-none">
-                <span>Coach David Miller</span>
+                <span>Coach Rudra Roy</span>
                 <ChevronDown className="w-3 h-3 text-slate-400" />
               </div>
               <div className="text-[9px] text-slate-400 font-medium leading-none mt-1">
