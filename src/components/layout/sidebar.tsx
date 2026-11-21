@@ -53,12 +53,6 @@ export function Sidebar({ activeTab, onTabChange, userRole, theme = 'bright' }: 
       description: 'Coach test entry & batteries',
     },
     {
-      id: 'competitions' as ActiveTab,
-      label: 'Athletics & WA Points',
-      icon: Trophy,
-      description: 'Track FAT, field & decathlon',
-    },
-    {
       id: 'benchmarks' as ActiveTab,
       label: 'Scientific Norms',
       icon: BookOpen,

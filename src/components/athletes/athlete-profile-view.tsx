@@ -87,16 +87,6 @@ export function AthleteProfileView({
                 <Activity className="w-3.5 h-3.5" /> New Assessment
               </button>
               <button
-                onClick={onRecordPerformance}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition ${
-                  isBright
-                    ? 'bg-white border-slate-200 text-slate-800 hover:bg-slate-50 shadow-xs'
-                    : 'bg-slate-900 border border-slate-700 text-white hover:bg-slate-800'
-                }`}
-              >
-                <Trophy className="w-3.5 h-3.5 text-red-500" /> Record Competition
-              </button>
-              <button
                 onClick={onAddMeasurement}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition ${
                   isBright
@@ -252,20 +242,6 @@ export function AthleteProfileView({
           }`}
         >
           Fitness Assessments ({assessments.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('competitions')}
-          className={`pb-3 px-3 transition border-b-2 ${
-            activeTab === 'competitions'
-              ? isBright
-                ? 'border-red-600 text-red-600 font-black'
-                : 'border-red-500 text-white font-black'
-              : isBright
-                ? 'border-transparent text-slate-500 hover:text-slate-900'
-                : 'border-transparent text-slate-400 hover:text-white'
-          }`}
-        >
-          Track & Field Competitions ({performances.length})
         </button>
         <button
           onClick={() => setActiveTab('anthropometry')}
@@ -437,14 +413,7 @@ export function AthleteProfileView({
         </div>
       )}
 
-      {/* Tab 3: Track & Field Competitions */}
-      {activeTab === 'competitions' && (
-        <div className="space-y-4">
-          <PerformanceTable performances={performances} />
-        </div>
-      )}
-
-      {/* Tab 4: Historical Body Measurements */}
+      {/* Tab 3: Historical Body Measurements */}
       {activeTab === 'anthropometry' && (
         <div
           className={`p-5 rounded-xl border transition-all ${

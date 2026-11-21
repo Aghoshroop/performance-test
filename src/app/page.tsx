@@ -476,60 +476,7 @@ export default function Home() {
                 </div>
               )}
 
-              {/* TAB 4: ATHLETICS COMPETITIONS & WA POINTS */}
-              {activeTab === 'competitions' && (
-                <div className="space-y-6">
-                  <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b ${
-                    theme === 'bright' ? 'border-slate-200' : 'border-slate-800'
-                  }`}>
-                    <div>
-                      <h2 className={`text-xl font-black flex items-center gap-2 ${
-                        theme === 'bright' ? 'text-slate-900' : 'text-white'
-                      }`}>
-                        <Trophy className="w-6 h-6 text-rose-500" />
-                        Athletics Performance Engine
-                      </h2>
-                      <p className={`text-xs ${theme === 'bright' ? 'text-slate-500' : 'text-slate-400'}`}>
-                        World Athletics Official Scoring Tables • Track FAT Splits & Field Event Attempts
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setIsWACalcOpen(true)}
-                        className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition ${
-                          theme === 'bright'
-                            ? 'bg-white border-slate-300 text-slate-800 hover:bg-slate-50 shadow-xs'
-                            : 'bg-slate-900 border-slate-700 text-white hover:bg-slate-800'
-                        }`}
-                      >
-                        Open WA Calculator
-                      </button>
-                      {currentUser.role !== 'ATHLETE' && (
-                        <button
-                          onClick={() => setIsCompetitionModalOpen(true)}
-                          className="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-gradient-to-r from-red-600 to-rose-600 text-white hover:from-red-500 hover:to-rose-500 shadow-md shadow-red-950/50"
-                        >
-                          + Record Competition Result
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Combined Events Score Card (Decathlon / Heptathlon) */}
-                  <CombinedEventCard />
-
-                  {/* Competition Records Table */}
-                  <div className="space-y-3">
-                    <h3 className={`font-bold text-sm ${theme === 'bright' ? 'text-slate-900' : 'text-white'}`}>
-                      Official Competition Performances ({performances.length})
-                    </h3>
-                    <PerformanceTable performances={performances} />
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 5: SCIENTIFIC NORMS & TEST LIBRARY */}
+              {/* TAB 4: SCIENTIFIC NORMS & TEST LIBRARY */}
               {activeTab === 'benchmarks' && (
                 <div className="space-y-6">
                   <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b ${

@@ -184,20 +184,6 @@ export function AthleteCard({
           </button>
         )}
 
-        {userRole !== 'ATHLETE' && onRecordPerformance && (
-          <button
-            onClick={() => onRecordPerformance(athlete)}
-            title="Record Competition Result"
-            className={`p-2 rounded-lg border transition ${
-              isBright
-                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
-                : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700'
-            }`}
-          >
-            <Trophy className="w-4 h-4" />
-          </button>
-        )}
-
         {userRole !== 'ATHLETE' && onDelete && (
           <button
             onClick={(e) => {

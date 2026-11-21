@@ -177,28 +177,6 @@ export function Navbar({
               </div>
             </button>
           )}
-
-          {/* Divider */}
-          <div className="hidden lg:block w-px h-5 bg-red-950/60 shrink-0" />
-
-          {/* WA Points */}
-          {onOpenWACalculator && (
-            <button
-              type="button"
-              onClick={onOpenWACalculator}
-              className="group shrink-0 inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition"
-              title="Official World Athletics Scoring Calculator"
-            >
-              <div className="p-0.5 rounded-lg text-slate-300 group-hover:text-rose-400 transition">
-                <Trophy className="w-4 h-4" />
-              </div>
-              <div className="text-[10px] sm:text-[11px] font-semibold text-slate-300 group-hover:text-white leading-tight text-left whitespace-nowrap">
-                WA
-                <br />
-                <span className="text-slate-400 group-hover:text-slate-200">Points</span>
-              </div>
-            </button>
-          )}
         </div>
 
         {/* 3. COACH PROFILE & RELOAD PILL (RIGHT) */}
